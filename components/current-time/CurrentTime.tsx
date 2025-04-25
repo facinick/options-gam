@@ -2,10 +2,7 @@
 
 import {
   useQuery,
-  QueryClient,
-  QueryClientProvider,
 } from "@tanstack/react-query";
-
 
 const getCurrentTime = async () => {
   const response = await fetch("/api/time");
@@ -17,26 +14,18 @@ const getCurrentTime = async () => {
 };
 
 const CurrentTime = () => {
-  const queryClient = new QueryClient();
-  return (
-    <QueryClientProvider client={queryClient}>
-      <InnerCurrentTime />
-    </QueryClientProvider>
-  );
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["currentTime"],
+    queryFn: getCurrentTime,
+    refetchInterval: 1000,
+});
+if (isLoading) {
+return <div id="current-time">Loading...</div>;
+}
+if (error) {
+return <div id="current-time">Error: {error.message}</div>;
+}
+return <div id="current-time">{data}</div>;
 };
 
-const InnerCurrentTime = () => {
-    const { data, isLoading, error } = useQuery({
-        queryKey: ["currentTime"],
-        queryFn: getCurrentTime,
-        refetchInterval: 1000,
-    });
-  if (isLoading) {
-    return <div id="current-time">Loading...</div>;
-    }
-    if (error) {
-    return <div id="current-time">Error: {error.message}</div>;
-    }
-    return <div id="current-time">{data}</div>;
-}
 export default CurrentTime;
