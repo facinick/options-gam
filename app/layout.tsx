@@ -1,6 +1,6 @@
 import "./globals.css";
 import { geistMono, geistSans } from "@/lib/fonts";
-import { Provider } from "@/utils/Provider";
+import { Provider } from "@/lib/Provider";
 
 export default function RootLayout({
   children,
@@ -9,10 +9,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      > <Provider>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
+        <Provider>
           {children}
         </Provider>
       </body>
