@@ -1,5 +1,6 @@
 import BankBalance from "@/components/BankBalance";
 import CMP from "@/components/CMP";
+import StrikePnLChart from "@/components/StrikePnLChart";
 
 export default function Home() {
   return (
@@ -14,6 +15,8 @@ export default function Home() {
           <CMP />
         </div>
       </header>
+      {/* Chart section */}
+      <StrikePnLChart />
       {/* Main content area (add more content here as needed) */}
       <section className="w-full">
         {/* ...existing or future content... */}
