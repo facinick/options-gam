@@ -1,4 +1,5 @@
-import { getUnderlyingById, getUnderlyingByName, getAllUnderlyings as repoGetAllUnderlyings, Underlying } from "../repositories/underlyingRepository";
+import { getAllAvailablePositions, getAllPositions, getPositionById } from "../repositories/positionRepository";
+import { getAllUnderlyings, getUnderlyingById, getUnderlyingByName, Underlying } from "../repositories/underlyingRepository";
 
 // Hardcoded CMPs for demo
 const cmpMap: Record<string, number> = {
@@ -7,29 +8,43 @@ const cmpMap: Record<string, number> = {
   'c0ffee00-1234-5678-9abc-def012345678': 2800,  // RELIANCE
 };
 
-export function getUnderlyingNameById(id: string): string | undefined {
-  return getUnderlyingById(id)?.name;
+// Get all underlyings
+export function getAllStocks(): Underlying[] {
+  return getAllUnderlyings();
 }
 
-export function getAllUnderlyings(): Underlying[] {
-  return repoGetAllUnderlyings();
+// Get underlying by ID
+export function getStockById(id: string): Underlying | undefined {
+  return getUnderlyingById(id);
 }
 
-export function getCMPByUnderlyingId(id: string): number | undefined {
+// Get underlying by name
+export function getStockByName(name: string): Underlying | undefined {
+  return getUnderlyingByName(name);
+}
+
+// Get CMP by underlying ID
+export function getCMPByStockId(id: string): number | undefined {
   return cmpMap[id];
 }
 
-export function getCMPByUnderlyingName(name: string): number | undefined {
+// Get CMP by underlying name
+export function getCMPByStockName(name: string): number | undefined {
   const underlying = getUnderlyingByName(name);
   return underlying ? cmpMap[underlying.id] : undefined;
 }
 
-export function getCMPOfPosition(position: {
-  underlyingId: string,
-  strike: number,
-  instrument_type: 'CE' | 'PE',
-  expiry: { date: number, month: number, year: number }
-}): number | undefined {
-  // For demo, just return the CMP of the underlying
-  return getCMPByUnderlyingId(position.underlyingId);
+// Get all available strikes for an underlying and cmp
+export function getAvailableStrikes(underlyingId: string, cmp: number): number[] {
+  return getAllAvailablePositions(underlyingId, cmp);
+}
+
+// Get all positions (global, not user-specific)
+export function getAllStockPositions() {
+  return getAllPositions();
+}
+
+// Get a position by ID (global, not user-specific)
+export function getStockPositionById(id: string) {
+  return getPositionById(id);
 } 

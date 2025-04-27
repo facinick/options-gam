@@ -22,7 +22,7 @@ export const useGetCMP = (underlyingId: string) => {
 };
 
 const fetchBankBalance = async () => {
-  const response = await fetch("/api/bankbalance");
+  const response = await fetch("/api/user/bankbalance");
   if (!response.ok) {
     throw new Error("Failed to fetch bank balance");
   }
@@ -58,11 +58,11 @@ export const useGetCurrentTime = () => {
   });
 };
 
-// Fetch all positions
+// Fetch all user positions
 const fetchPositions = async () => {
-  const response = await fetch("/api/positions");
+  const response = await fetch("/api/user/positions");
   if (!response.ok) {
-    throw new Error("Failed to fetch positions");
+    throw new Error("Failed to fetch user positions");
   }
   return await response.json();
 };
@@ -97,5 +97,31 @@ export const useAddPosition = () => {
       queryClient.invalidateQueries({ queryKey: ["positions"] });
       queryClient.invalidateQueries({ queryKey: ["bankBalance"] });
     },
+  });
+};
+
+// Fetch all available strikes for an underlying around CMP
+const fetchAvailableStrikes = async (underlyingId: string, cmp: number): Promise<number[]> => {
+  const response = await fetch(`/api/positions?underlyingId=${encodeURIComponent(underlyingId)}&cmp=${cmp}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch available strikes");
+  }
+  // Validate as array of numbers
+  const data = await response.json();
+  return z.array(z.number()).parse(data);
+};
+
+/**
+ * React Query hook to get all available strikes for an underlying and cmp
+ */
+export const useGetAvailableStrikes = (underlyingId: string | undefined, cmp: number | undefined) => {
+  return useQuery({
+    queryKey: ["availableStrikes", underlyingId, cmp],
+    queryFn: () => {
+      if (!underlyingId || cmp === undefined) throw new Error("Missing params");
+      return fetchAvailableStrikes(underlyingId, cmp);
+    },
+    enabled: !!underlyingId && cmp !== undefined,
+    refetchOnWindowFocus: false,
   });
 };

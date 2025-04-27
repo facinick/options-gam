@@ -3,7 +3,8 @@ import { zodSchemas } from "../lib/zod";
 
 export type Position = z.infer<typeof zodSchemas.position>;
 
-let positions: Position[] = [
+// In-memory global positions store
+const positions: Position[] = [
   {
     id: "1",
     strike: 20000,
@@ -40,6 +41,10 @@ export function getAllPositions(): Position[] {
   return positions;
 }
 
+export function getPositionById(id: string): Position | undefined {
+  return positions.find((p) => p.id === id);
+}
+
 export function addPosition(position: Omit<Position, "id"> & { id?: string }): Position {
   const newPosition: Position = {
     ...position,
@@ -60,4 +65,20 @@ export function updatePosition(position: Position): Position | undefined {
   if (index === -1) return undefined;
   positions[index] = position;
   return position;
+}
+
+/**
+ * Returns all available strike prices for a given underlying, within +-1000 of the CMP.
+ * Strikes are generated every 100 units in the range [cmp-1000, cmp+1000].
+ * This does not depend on user positions.
+ */
+export function getAllAvailablePositions(underlyingId: string, cmp: number): number[] {
+  // For demo, generate strikes every 100 units in the range
+  const strikes: number[] = [];
+  const minStrike = Math.floor((cmp - 1000) / 100) * 100;
+  const maxStrike = Math.ceil((cmp + 1000) / 100) * 100;
+  for (let strike = minStrike; strike <= maxStrike; strike += 100) {
+    strikes.push(strike);
+  }
+  return strikes;
 } 

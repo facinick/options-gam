@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAddPosition, useGetCMP, useGetPositions } from "@/lib/api";
+import { useAddPosition, useGetAvailableStrikes, useGetCMP, useGetPositions } from "@/lib/api";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { Group } from "@visx/group";
 import { scaleLinear } from "@visx/scale";
@@ -22,7 +22,10 @@ const STRIKE_HOVER_RADIUS = 24;
  */
 const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) => {
   const { data: cmpData } = useGetCMP(underlyingId);
-  const cmp = cmpData?.cmp
+  const cmp = cmpData?.cmp;
+
+  // Fetch available strikes (x axis)
+  const { data: availableStrikes } = useGetAvailableStrikes(underlyingId, cmp);
 
   // Responsive width
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +50,7 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   }, []);
 
   // Fetch positions from backend
-  const { data: positions, isLoading: positionsLoading } = useGetPositions();
+  const { data: positions } = useGetPositions();
   const addPosition = useAddPosition();
 
   // Transform positions to chart data: group by strike, sum PnL for each strike
@@ -59,15 +62,32 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
       // For demo, treat net_price as PnL (real logic may differ)
       map.set(pos.strike, (map.get(pos.strike) || 0) + (pos.transaction_type === 'BUY' ? -pos.net_price : pos.net_price));
     }
-    return Array.from(map.entries()).map(([strike, pnl]) => ({ strike, pnl })).sort((a, b) => a.strike - b.strike);
+    return Array.from(map.entries()).map(([strike, pnl]) => ({ strike, pnl }));
   }, [positions]);
 
-  const xValues = chartData.map((d) => d.strike);
-  const yValues = chartData.map((d) => d.pnl);
+  // Use available strikes for x axis, and merge with chartData for PnL
+  const xValues = React.useMemo(() => {
+    if (!availableStrikes) return [];
+    return availableStrikes.slice().sort((a, b) => a - b);
+  }, [availableStrikes]);
+
+  // Map strike to PnL (default 0 if not present)
+  const strikeToPnl = React.useMemo(() => {
+    const map = new Map<number, number>();
+    for (const d of chartData) map.set(d.strike, d.pnl);
+    return map;
+  }, [chartData]);
+
+  // Chart data for all available strikes
+  const mergedChartData = React.useMemo(() => {
+    return xValues.map((strike) => ({ strike, pnl: strikeToPnl.get(strike) ?? 0 }));
+  }, [xValues, strikeToPnl]);
+
+  const yValues = mergedChartData.map((d) => d.pnl);
 
   // Scales
   const xScale = scaleLinear<number>({
-    domain: [xValues[0], xValues[xValues.length - 1]],
+    domain: xValues.length > 0 ? [xValues[0], xValues[xValues.length - 1]] : [0, 1],
     range: [margin.left, width - margin.right],
   });
   const yMin = Math.min(...yValues, 0);
@@ -90,16 +110,17 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   const svgRef = useRef<SVGSVGElement>(null);
   const popoverTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Find the closest strike price to a given x pixel
+  // Find the closest strike price to a given x pixel (use available strikes)
   function getClosestStrike(mouseX: number): { strike: number; x: number } | null {
+    if (!xValues.length) return null;
     let minDist = Infinity;
     let closest: { strike: number; x: number } | null = null;
-    for (const d of chartData) {
-      const sx = xScale(d.strike);
+    for (const strike of xValues) {
+      const sx = xScale(strike);
       const dist = Math.abs(mouseX - sx);
       if (dist < minDist) {
         minDist = dist;
-        closest = { strike: d.strike, x: sx };
+        closest = { strike, x: sx };
       }
     }
     if (minDist <= STRIKE_HOVER_RADIUS) return closest;
@@ -141,7 +162,7 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   }
 
   // Custom tick label for x axis with white background
-  const CustomXAxisTick = ({ x, y, formattedValue }: { x?: number; y?: number; formattedValue?: string }) => {
+  function CustomXAxisTick({ x, y, formattedValue }: { x?: number; y?: number; formattedValue?: string }): React.ReactNode {
     if (x === undefined || y === undefined || !formattedValue) return null;
     const rectHeight = 22;
     return (
@@ -159,7 +180,7 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
         </text>
       </g>
     );
-  };
+  }
 
   return (
     <section aria-label="Strike Price vs PnL Chart" className="w-full max-w-7xl mx-auto my-8">
@@ -211,7 +232,7 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
               label=""
               tickValues={xValues}
               tickFormat={(v) => v.toString()}
-              tickComponent={CustomXAxisTick as any}
+              tickComponent={CustomXAxisTick}
               labelProps={{
                 fontSize: 14,
                 fill: '#222',
@@ -225,14 +246,14 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
             />
             {/* PnL Line */}
             <LinePath
-              data={chartData}
+              data={mergedChartData}
               x={(d) => xScale(d.strike)}
               y={(d) => yScale(d.pnl)}
               stroke="#2563eb"
               strokeWidth={2}
             />
             {/* Dots for each point */}
-            {chartData.map((d) => (
+            {mergedChartData.map((d) => (
               <Circle
                 key={d.strike}
                 cx={xScale(d.strike)}

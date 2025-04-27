@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as cmpService from '../../../services/cmpService';
+import * as stockService from '../../../services/stockService';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -7,6 +7,6 @@ export async function GET(request: Request) {
   if (!underlyingId) {
     return NextResponse.json({ error: 'underlyingId is required' }, { status: 400 });
   }
-  const cmp = await cmpService.getCMP(underlyingId);
-  return NextResponse.json(cmp);
+  const cmp = stockService.getCMPByStockId(underlyingId);
+  return NextResponse.json({ cmp });
 }

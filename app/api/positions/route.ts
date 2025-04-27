@@ -1,64 +1,34 @@
 import { NextResponse } from 'next/server';
-import { zodSchemas } from '../../../lib/zod';
-import * as positionsService from '../../../services/positionsService';
+import { z } from 'zod';
+import * as stockService from '../../../services/stockService';
 
-export async function GET() {
+/**
+ * GET /api/positions?underlyingId=...&cmp=...
+ * Returns all available strike prices for the given underlying and cmp.
+ * Query params:
+ *   - underlyingId: string (required)
+ *   - cmp: number (required)
+ */
+export async function GET(request: Request) {
+  // Parse query params
+  const { searchParams } = new URL(request.url);
+  const underlyingId = searchParams.get('underlyingId');
+  const cmpStr = searchParams.get('cmp');
+
+  // Validate params
+  const schema = z.object({
+    underlyingId: z.string().min(1),
+    cmp: z.preprocess((v) => Number(v), z.number().finite()),
+  });
+  const parseResult = schema.safeParse({ underlyingId, cmp: cmpStr });
+  if (!parseResult.success) {
+    return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 });
+  }
+  const { underlyingId: validUnderlyingId, cmp } = parseResult.data;
   try {
-    const positions = await positionsService.getAllPositions();
+    const positions = stockService.getAvailableStrikes(validUnderlyingId, cmp);
     return NextResponse.json(positions);
   } catch {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 });
   }
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const parseResult = zodSchemas.position.omit({ id: true }).safeParse(body);
-    if (!parseResult.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-    }
-    const newPosition = await positionsService.addPosition(parseResult.data);
-    return NextResponse.json(newPosition);
-  } catch {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: Request) {
-  try {
-    const body = await request.json();
-    const { id } = body;
-    if (!id || typeof id !== 'string') {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-    }
-    const deletedPosition = await positionsService.deletePosition(id);
-    if (!deletedPosition) {
-      return NextResponse.json({ error: "Position not found" }, { status: 404 });
-    }
-    return NextResponse.json(deletedPosition);
-  } catch {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request) {
-  try {
-    const body = await request.json();
-    const parseResult = zodSchemas.position.safeParse(body);
-    if (!parseResult.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-    }
-    const updatedPosition = await positionsService.updatePosition(parseResult.data);
-    if (!updatedPosition) {
-      return NextResponse.json({ error: "Position not found" }, { status: 404 });
-    }
-    return NextResponse.json(updatedPosition);
-  } catch {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-  }
-}
-
-export async function OPTIONS() {
-  return NextResponse.json({ message: "Options request received" }, { status: 200 });
 }

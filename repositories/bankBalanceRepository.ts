@@ -3,14 +3,23 @@ import { z } from "zod";
 
 export type BankBalance = z.infer<typeof zodSchemas.bankBalance>;
 
-let bankBalance: BankBalance = {
-  bankBalance: 100000,
-};
+// In-memory bank balances store
+const bankBalances: BankBalance[] = [
+  { id: "bal1", bankBalance: 100000 },
+];
 
-export function getBankBalance(): BankBalance {
-  return bankBalance;
+export function getBankBalanceById(id: string): BankBalance | undefined {
+  return bankBalances.find((b) => b.id === id);
 }
 
-export function setBankBalance(newBalance: BankBalance): void {
-  bankBalance = newBalance;
+export function updateBankBalance(balance: BankBalance): BankBalance | undefined {
+  const idx = bankBalances.findIndex((b) => b.id === balance.id);
+  if (idx === -1) return undefined;
+  bankBalances[idx] = balance;
+  return balance;
+}
+
+export function addBankBalance(balance: BankBalance): BankBalance {
+  bankBalances.push(balance);
+  return balance;
 } 

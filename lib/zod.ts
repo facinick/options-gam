@@ -5,6 +5,7 @@ export const cmpSchema = z.object({
 });
 
 export const bankBalanceSchema = z.object({
+  id: z.string(),
   bankBalance: z.number(),
 })
 
@@ -39,6 +40,12 @@ export const underlyingSchema = z.object({
 
 export const underlyingsSchema = z.array(underlyingSchema);
 
+export const userSchema = z.object({
+  id: z.string(),
+  positionIds: z.array(z.string()),
+  bankBalanceId: z.string(),
+});
+
 export const zodSchemas = {
   cmp: cmpSchema,
   bankBalance: bankBalanceSchema,
@@ -47,4 +54,5 @@ export const zodSchemas = {
   positions: positionsSchema,
   underlying: underlyingSchema,
   underlyings: underlyingsSchema,
+  user: userSchema,
 };
