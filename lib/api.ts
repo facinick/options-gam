@@ -58,13 +58,29 @@ export const useGetCurrentTime = () => {
   });
 };
 
-// Fetch all user positions
-const fetchPositions = async () => {
-  const response = await fetch("/api/user/positions");
-  if (!response.ok) {
-    throw new Error("Failed to fetch user positions");
-  }
+// Fetch the full user object from /api/user
+const fetchUser = async () => {
+  const response = await fetch("/api/user");
+  if (!response.ok) throw new Error("Failed to fetch user data");
   return await response.json();
+};
+
+export const useGetUser = () => {
+  return useQuery({
+    queryKey: ["user"],
+    queryFn: fetchUser,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Fetch all user positions from /api/user
+const fetchPositions = async () => {
+  const response = await fetch("/api/user");
+  if (!response.ok) {
+    throw new Error("Failed to fetch user data");
+  }
+  const data = await response.json();
+  return data.positions;
 };
 
 export const useGetPositions = () => {
@@ -76,9 +92,9 @@ export const useGetPositions = () => {
   });
 };
 
-// Add a new position
-const addPosition = async (position: Omit<z.infer<typeof zodSchemas.position>, "id" | "timestamp">) => {
-  const response = await fetch("/api/positions", {
+// Add a new position (user-specific)
+const addPosition = async (position: Omit<z.infer<typeof zodSchemas.position>, "id">) => {
+  const response = await fetch("/api/user/positions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(position),
@@ -94,6 +110,7 @@ export const useAddPosition = () => {
   return useMutation({
     mutationFn: addPosition,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user"] });
       queryClient.invalidateQueries({ queryKey: ["positions"] });
       queryClient.invalidateQueries({ queryKey: ["bankBalance"] });
     },

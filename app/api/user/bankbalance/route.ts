@@ -6,5 +6,6 @@ export async function GET() {
   // In a real app, get userId from auth/session
   const userId = '1';
   const bankBalance = userService.getUserBankBalance(userId);
+  console.log("bankBalance", bankBalance);
   return NextResponse.json(bankBalance);
 } 

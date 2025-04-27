@@ -20,6 +20,17 @@ export function addUserPosition(userId: string, position: Omit<positionRepo.Posi
   if (!user) throw new Error("User not found");
   const newPosition = positionRepo.addPosition(position);
   user.positionIds.push(newPosition.id);
+
+  // Update bank balance
+  const balance = bankBalanceRepo.getBankBalanceById(user.bankBalanceId);
+  if (balance) {
+    const newBalance =
+      position.transaction_type === "BUY"
+        ? balance.bankBalance - position.net_price
+        : balance.bankBalance + position.net_price;
+    bankBalanceRepo.updateBankBalance({ ...balance, bankBalance: newBalance });
+  }
+
   userRepo.updateUser(user);
   return newPosition;
 }

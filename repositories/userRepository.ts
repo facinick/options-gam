@@ -3,14 +3,18 @@ import { z } from "zod";
 
 export type User = z.infer<typeof zodSchemas.user>;
 
-// In-memory user store
-const users: User[] = [
-  {
-    id: "1",
-    positionIds: [], // User's position IDs
-    bankBalanceId: "bal1", // Reference to bank balance
-  },
-];
+// Use a global singleton for in-memory store (works in dev, not serverless/prod)
+const globalAny = global as any;
+if (!globalAny.users) {
+  globalAny.users = [
+    {
+      id: "1",
+      positionIds: [], // User's position IDs
+      bankBalanceId: "bal1", // Reference to bank balance
+    },
+  ];
+}
+const users: User[] = globalAny.users;
 
 export function getUserById(id: string): User | undefined {
   return users.find((user) => user.id === id);

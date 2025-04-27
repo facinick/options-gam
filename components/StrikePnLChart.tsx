@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAddPosition, useGetAvailableStrikes, useGetCMP, useGetPositions } from "@/lib/api";
+import { useAddPosition, useGetAvailableStrikes, useGetCMP, useGetUser } from "@/lib/api";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { Group } from "@visx/group";
 import { scaleLinear } from "@visx/scale";
@@ -27,6 +27,10 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   // Fetch available strikes (x axis)
   const { data: availableStrikes } = useGetAvailableStrikes(underlyingId, cmp);
 
+  // Fetch user data (positions, bank balance)
+  const { data: userData } = useGetUser();
+  const positions = userData?.positions;
+
   // Responsive width
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -50,7 +54,6 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   }, []);
 
   // Fetch positions from backend
-  const { data: positions } = useGetPositions();
   const addPosition = useAddPosition();
 
   // Transform positions to chart data: group by strike, sum PnL for each strike
@@ -308,15 +311,15 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
             />
             {/* Top buttons: BUY CE/PE */}
             <div className="flex flex-col gap-1 mb-2">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>BUY CE</Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>BUY PE</Button>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId, timestamp: new Date().toISOString() })}>BUY CE</Button>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId, timestamp: new Date().toISOString() })}>BUY PE</Button>
             </div>
             {/* Divider at x axis (invisible, just for spacing) */}
             <div style={{ height: 0, width: '100%' }} />
             {/* Bottom buttons: SELL PE/CE */}
             <div className="flex flex-col gap-1 mt-2">
-              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>SELL PE</Button>
-              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>SELL CE</Button>
+              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId, timestamp: new Date().toISOString() })}>SELL PE</Button>
+              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId, timestamp: new Date().toISOString() })}>SELL CE</Button>
             </div>
           </div>
         )}

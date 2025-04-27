@@ -17,6 +17,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    body.timestamp = new Date().toISOString();
     const parseResult = zodSchemas.position.omit({ id: true }).safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
