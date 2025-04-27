@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useGetCMP } from "@/lib/api";
+import { useAddPosition, useGetCMP, useGetPositions } from "@/lib/api";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { Group } from "@visx/group";
 import { scaleLinear } from "@visx/scale";
@@ -12,19 +12,6 @@ import React, { useEffect, useRef, useState } from "react";
 const height = 400;
 const margin = { top: 40, right: 40, bottom: 40, left: 60 };
 
-// Mock data: strike prices and corresponding PnL values
-const mockData = [
-  { strike: 10000, pnl: -200 },
-  { strike: 10150, pnl: -100 },
-  { strike: 10300, pnl: 0 },
-  { strike: 10450, pnl: 150 },
-  { strike: 10600, pnl: 300 },
-  { strike: 10750, pnl: 200 },
-  { strike: 10900, pnl: 0 },
-  { strike: 11050, pnl: -100 },
-  { strike: 11200, pnl: -250 },
-];
-
 // How close (in px) the mouse must be to a strike price to trigger the popover
 const STRIKE_HOVER_RADIUS = 24;
 
@@ -33,9 +20,9 @@ const STRIKE_HOVER_RADIUS = 24;
  * and PnL on the y-axis (left side). Uses visx for rendering.
  * Accessible, responsive, and ready for extensibility.
  */
-const StrikePnLChart: React.FC = () => {
-  const { data: cmpData } = useGetCMP();
-  const cmp = cmpData?.cmp ?? 10600; // fallback to a value if loading
+const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) => {
+  const { data: cmpData } = useGetCMP(underlyingId);
+  const cmp = cmpData?.cmp
 
   // Responsive width
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,10 +46,24 @@ const StrikePnLChart: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Center the x axis ticks around CMP
-  const sortedData = [...mockData].sort((a, b) => a.strike - b.strike);
-  const xValues = sortedData.map((d) => d.strike);
-  const yValues = sortedData.map((d) => d.pnl);
+  // Fetch positions from backend
+  const { data: positions, isLoading: positionsLoading } = useGetPositions();
+  const addPosition = useAddPosition();
+
+  // Transform positions to chart data: group by strike, sum PnL for each strike
+  const chartData = React.useMemo(() => {
+    if (!positions) return [];
+    // Group by strike
+    const map = new Map<number, number>();
+    for (const pos of positions) {
+      // For demo, treat net_price as PnL (real logic may differ)
+      map.set(pos.strike, (map.get(pos.strike) || 0) + (pos.transaction_type === 'BUY' ? -pos.net_price : pos.net_price));
+    }
+    return Array.from(map.entries()).map(([strike, pnl]) => ({ strike, pnl })).sort((a, b) => a.strike - b.strike);
+  }, [positions]);
+
+  const xValues = chartData.map((d) => d.strike);
+  const yValues = chartData.map((d) => d.pnl);
 
   // Scales
   const xScale = scaleLinear<number>({
@@ -93,7 +94,7 @@ const StrikePnLChart: React.FC = () => {
   function getClosestStrike(mouseX: number): { strike: number; x: number } | null {
     let minDist = Infinity;
     let closest: { strike: number; x: number } | null = null;
-    for (const d of sortedData) {
+    for (const d of chartData) {
       const sx = xScale(d.strike);
       const dist = Math.abs(mouseX - sx);
       if (dist < minDist) {
@@ -217,19 +218,21 @@ const StrikePnLChart: React.FC = () => {
                 textAnchor: 'middle',
                 dy: -28,
               }}
+              stroke="#888"
+              tickStroke="#888"
               hideAxisLine={false}
               hideTicks={true}
             />
             {/* PnL Line */}
             <LinePath
-              data={sortedData}
+              data={chartData}
               x={(d) => xScale(d.strike)}
               y={(d) => yScale(d.pnl)}
               stroke="#2563eb"
               strokeWidth={2}
             />
             {/* Dots for each point */}
-            {sortedData.map((d) => (
+            {chartData.map((d) => (
               <Circle
                 key={d.strike}
                 cx={xScale(d.strike)}
@@ -242,16 +245,18 @@ const StrikePnLChart: React.FC = () => {
               />
             ))}
             {/* Highlight CMP with a vertical line */}
-            <line
-              x1={xScale(cmp)}
-              x2={xScale(cmp)}
-              y1={margin.top}
-              y2={height - margin.bottom}
-              stroke="#f59e42"
-              strokeDasharray="4 2"
-              strokeWidth={2}
-              aria-label="Current Market Price"
-            />
+            {cmp && (
+              <line
+                x1={xScale(cmp)}
+                x2={xScale(cmp)}
+                y1={margin.top}
+                y2={height - margin.bottom}
+                stroke="#f59e42"
+                strokeDasharray="4 2"
+                strokeWidth={2}
+                aria-label="Current Market Price"
+              />
+            )}
           </Group>
         </svg>
         {/* Popover for strike price actions */}
@@ -282,15 +287,15 @@ const StrikePnLChart: React.FC = () => {
             />
             {/* Top buttons: BUY CE/PE */}
             <div className="flex flex-col gap-1 mb-2">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => alert(`BUY CE @ ${popover.strike}`)}>BUY CE</Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => alert(`BUY PE @ ${popover.strike}`)}>BUY PE</Button>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>BUY CE</Button>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'BUY', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>BUY PE</Button>
             </div>
             {/* Divider at x axis (invisible, just for spacing) */}
-            <div style={{ height: 15, width: '100%' }} />
+            <div style={{ height: 0, width: '100%' }} />
             {/* Bottom buttons: SELL PE/CE */}
             <div className="flex flex-col gap-1 mt-2">
-              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => alert(`SELL PE @ ${popover.strike}`)}>SELL PE</Button>
-              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => alert(`SELL CE @ ${popover.strike}`)}>SELL CE</Button>
+              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'PE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>SELL PE</Button>
+              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => addPosition.mutate({ strike: popover.strike!, instrument_type: 'CE', transaction_type: 'SELL', net_quantity: 1, net_price: 100, expiry: { date: 1, month: 1, year: 2026 }, underlyingId })}>SELL CE</Button>
             </div>
           </div>
         )}

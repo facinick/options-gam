@@ -9,8 +9,8 @@ import React from "react";
  * Handles loading and error states gracefully.
  * Accessible and uses semantic HTML.
  */
-export const CMP: React.FC = () => {
-  const { data, isLoading, isError, error } = useGetCMP();
+export const CMP: React.FC<{ underlyingId: string }> = ({ underlyingId }) => {
+  const { data, isLoading, isError, error } = useGetCMP(underlyingId);
 
   // Loading state
   if (isLoading) {

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import * as bankBalanceService from '../../../services/bankBalanceService';
 
 export async function GET() {
-  const bankBalance = 100000;
-  return NextResponse.json({ bankBalance });
+  const bankBalance = await bankBalanceService.getBankBalance();
+  return NextResponse.json(bankBalance);
 }
 
 

@@ -2,6 +2,8 @@ import BankBalance from "@/components/BankBalance";
 import CMP from "@/components/CMP";
 import StrikePnLChart from "@/components/StrikePnLChart";
 
+const underlyingId = 'b7e6e2e2-1c2a-4b1a-8e2a-1e2a1e2a1e2a';
+
 export default function Home() {
   return (
     // Main container with grid layout
@@ -12,11 +14,11 @@ export default function Home() {
           <BankBalance />
         </div>
         <div className="flex-1 flex justify-end">
-          <CMP />
+          <CMP underlyingId={underlyingId} />
         </div>
       </header>
       {/* Chart section */}
-      <StrikePnLChart />
+      <StrikePnLChart underlyingId={underlyingId} />
       {/* Main content area (add more content here as needed) */}
       <section className="w-full">
         {/* ...existing or future content... */}
