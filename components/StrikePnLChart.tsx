@@ -56,19 +56,33 @@ const StrikePnLChart: React.FC<{ underlyingId: string }> = ({ underlyingId }) =>
   // Fetch positions from backend
   const addPosition = useAddPosition();
 
-  // Transform positions to chart data: group by strike, sum PnL for each strike
+  // Transform positions to chart data: for each x (spot), sum PnL for all positions
   const chartData = React.useMemo(() => {
-    if (!positions) return [];
-    // Group by strike
-    const map = new Map<number, number>();
-    for (const pos of positions) {
-      // For demo, treat net_price as PnL (real logic may differ)
-      map.set(pos.strike, (map.get(pos.strike) || 0) + (pos.transaction_type === 'BUY' ? -pos.net_price : pos.net_price));
-    }
-    return Array.from(map.entries()).map(([strike, pnl]) => ({ strike, pnl }));
-  }, [positions]);
+    if (!positions || !availableStrikes) return [];
+    // For each x (spot), sum PnL for all positions
+    return availableStrikes.slice().sort((a, b) => a - b).map((spot) => {
+      let pnl = 0;
+      for (const pos of positions) {
+        const { strike, instrument_type, transaction_type, net_price } = pos;
+        if (instrument_type === "CE" && transaction_type === "SELL") {
+          // Short Call
+          pnl += spot <= strike ? net_price : net_price - (spot - strike);
+        } else if (instrument_type === "CE" && transaction_type === "BUY") {
+          // Long Call
+          pnl += spot <= strike ? -net_price : (spot - strike) - net_price;
+        } else if (instrument_type === "PE" && transaction_type === "SELL") {
+          // Short Put
+          pnl += spot >= strike ? net_price : net_price - (strike - spot);
+        } else if (instrument_type === "PE" && transaction_type === "BUY") {
+          // Long Put
+          pnl += spot >= strike ? -net_price : (strike - spot) - net_price;
+        }
+      }
+      return { strike: spot, pnl };
+    });
+  }, [positions, availableStrikes]);
 
-  // Use available strikes for x axis, and merge with chartData for PnL
+  // Use available strikes for x axis
   const xValues = React.useMemo(() => {
     if (!availableStrikes) return [];
     return availableStrikes.slice().sort((a, b) => a - b);
